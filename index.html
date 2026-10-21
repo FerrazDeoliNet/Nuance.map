@@ -8,10 +8,11 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007AFF">
 
-    <!-- SDK do Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- ADICIONADO O 'defer' PARA NÃO TRAVAR A PÁGINA SE O CDN FALHAR -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
     <style>
+        /* [MANTIDO TODO O CSS ANTERIOR] */
         :root {
             --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-main: #000000;
             --text-sec: #8E8E93; --primary: #007AFF; --primary-press: #0056b3;
@@ -108,11 +109,7 @@
         @keyframes fadeInFundo { from { background: rgba(0,0,0,0); } to { background: rgba(0,0,0,0.5); } }
         @keyframes springPopUp { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        .input-email {
-            width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px;
-            border: 1px solid var(--border-color); background: var(--bg-color);
-            color: var(--text-main); font-size: 1rem;
-        }
+        .input-email { width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); font-size: 1rem; }
     </style>
 </head>
 <body>
@@ -190,7 +187,6 @@
     </div>
 </div>
 
-<!-- MODAL DE LOGIN -->
 <div class="modal-overlay" id="modal-login" onclick="fecharForaLogin(event)">
     <div class="modal-content">
         <div class="drag-handle"></div>
@@ -203,7 +199,6 @@
     </div>
 </div>
 
-<!-- MODAL PADRÃO -->
 <div class="modal-overlay" id="modal" onclick="fecharFora(event)">
     <div class="modal-content">
         <div class="drag-handle"></div>
@@ -214,18 +209,24 @@
 </div>
 
 <script>
-    // --- CONFIGURAÇÃO DO SUPABASE ---
+    // --- CONFIGURAÇÃO DO SUPABASE (PROTEGIDA) ---
     const SUPABASE_URL = 'https://qcfvjcqczsktqdmemcel.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZnZqY3FjenNrdHFkbWVtY2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1OTg5MjIsImV4cCI6MjEwODE3NDkyMn0.bI5lj5aMXLWNCd6AVVmHCxgKZWAWisRblvsASKLZSrg';
     
     let supabaseClient = null;
     let usuarioLogado = null;
 
-    try {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch(e) {
-        console.warn("Supabase não configurado. Usando modo offline.");
-    }
+    // Só inicializa o Supabase quando a página terminar de carregar
+    window.addEventListener('load', function() {
+        if (typeof supabase !== 'undefined') {
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                verificarSessao();
+            } catch(e) { console.warn("Erro ao iniciar Supabase."); }
+        } else {
+            console.warn("SDK do Supabase não carregou. Rodando no modo offline.");
+        }
+    });
 
     // --- BANCO DE DADOS COMPLETO ---
     var dicionario = {
@@ -253,5 +254,4 @@
         { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", cat: "economia", inverter: true, expl: "Permitir que acordos entre patrões e empregados se sobreponham à lei.", inter: "Apenas em momentos de crise" },
         { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", cat: "estado", expl: "Aumentar a quantidade de dinheiro ou o número de pessoas atendidas.", inter: "Apenas o necessário" },
         { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", cat: "costumes", expl: "Reservar um percentual de vagas em universidades e concursos públicos.", inter: "Apenas cotas sociais (renda)" },
-        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", cat: "economia", inverter: true, expl: "Uma regra que impede o governo de gastar mais do que um limite.", inter: "Sim, mas com exceções" },
-        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", cat: "estado", expl
+        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> 

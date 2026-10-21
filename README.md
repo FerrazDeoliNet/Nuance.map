@@ -1,5 +1,7 @@
 # Nuance.map
 
+[![Known Vulnerabilities](https://snyk.io/test/github/FerrazDeoliNet/Nuance.map/badge.svg)](https://snyk.io/test/github/FerrazDeoliNet/Nuance.map)
+
 🧭 Nuance.map - Seu mapa político sem extremos
 
 O Nuance.map é um aplicativo web (Single Page Application) focado em mapear a posição política do usuário de forma imparcial, moderna e livre de extremismos.

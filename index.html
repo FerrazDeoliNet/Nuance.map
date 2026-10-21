@@ -4,104 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nuance.map</title>
-
-    <style>
-        :root {
-            --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-main: #000000;
-            --text-sec: #8E8E93; --primary: #007AFF; --primary-press: #0056b3;
-            --btn-sec: #E5E5EA; --btn-sec-press: #D1D1D6; --border-color: #C6C6C8;
-            --modal-bg: #FFFFFF; --keyword-color: #007AFF;
-            --shadow: 0 4px 12px rgba(0,0,0,0.05); --danger: #FF3B30;
-            --switch-bg: #E5E5EA; --switch-active: #34C759;
-            --handle-color: #C6C6C8; --success: #34C759;
-        }
-        [data-theme="dark"] {
-            --bg-color: #000000; --card-bg: #1C1C1E; --text-main: #FFFFFF;
-            --text-sec: #EBEBF599; --primary: #0A84FF; --primary-press: #0060DF;
-            --btn-sec: #2C2C2E; --btn-sec-press: #3A3A3C; --border-color: #38383A;
-            --modal-bg: #1C1C1E; --keyword-color: #64D2FF;
-            --shadow: 0 4px 12px rgba(0,0,0,0.3); --danger: #FF453A;
-            --switch-bg: #39393D; --switch-active: #0A84FF;
-            --handle-color: #48484A; --success: #30D158;
-        }
-        
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; transition: background-color 0.3s, color 0.3s; }
-        
-        .container { background: var(--card-bg); padding: 30px 20px; border-radius: 20px; box-shadow: var(--shadow); width: 100%; max-width: 450px; text-align: center; position: relative; transition: background-color 0.3s; }
-        .hidden { display: none !important; }
-        
-        .top-left-container { position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; gap: 15px; }
-        .icon-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-sec); padding: 0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
-        .icon-btn:hover { color: var(--primary); }
-
-        .theme-container { position: fixed; top: 20px; right: 20px; z-index: 1000; }
-        .switch { position: relative; display: inline-block; width: 51px; height: 31px; }
-        .switch input { opacity: 0; width: 100%; height: 100%; position: absolute; z-index: 2; margin: 0; cursor: pointer; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--switch-bg); transition: .4s; border-radius: 31px; }
-        .slider:before { position: absolute; content: "☀️"; display: flex; justify-content: center; align-items: center; font-size: 12px; height: 27px; width: 27px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        input:checked + .slider { background-color: var(--switch-active); }
-        input:checked + .slider:before { transform: translateX(20px); content: "🌙"; background-color: #1C1C1E; }
-        
-        h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 5px; letter-spacing: -0.5px; margin-top: 10px; }
-        .subtitle { font-size: 0.9rem; color: var(--text-sec); margin-bottom: 20px; font-weight: 500; }
-        p.desc { font-size: 0.95rem; color: var(--text-sec); margin-bottom: 25px; line-height: 1.4; }
-        
-        .btn { background-color: var(--primary); color: white; border: none; padding: 16px; font-size: 1.05rem; font-weight: 600; border-radius: 14px; cursor: pointer; width: 100%; margin-top: 10px; transition: background 0.1s, transform 0.1s; display: block; }
-        .btn:active { background-color: var(--primary-press); transform: scale(0.98); }
-        .btn-no { background-color: var(--btn-sec); color: var(--text-main); }
-        .btn-no:active { background-color: var(--btn-sec-press); }
-        .btn-inter { background-color: transparent; color: var(--primary); border: 2px solid var(--primary); font-size: 0.95rem; padding: 12px; }
-        .btn-inter:active { background-color: var(--bg-color); }
-        .btn-share { background-color: var(--success); color: white; margin-bottom: 10px; }
-        
-        .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; height: 30px; }
-        .top-btn { background: none; border: none; color: var(--primary); font-size: 0.9rem; font-weight: 600; cursor: pointer; padding: 5px; }
-        
-        .question-text { margin-bottom: 20px; min-height: 120px; display: flex; align-items: center; justify-content: center; padding: 10px 0; }
-        .text-content { font-size: 1.15rem; font-weight: 500; line-height: 1.5; text-align: center; display: block; width: 100%; }
-        .keyword { color: var(--keyword-color); border-bottom: 2px dotted var(--keyword-color); cursor: pointer; font-weight: 600; }
-        
-        .progress { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-        
-        .result-badge { display: inline-block; background-color: var(--primary); color: white; padding: 10px 25px; border-radius: 25px; font-weight: 700; font-size: 1.2rem; margin-bottom: 5px; }
-        .user-title { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px; font-style: italic; }
-        .stats-text { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 20px; }
-        
-        canvas { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; margin: 10px 0; width: 100%; max-width: 350px; height: auto; aspect-ratio: 1 / 1; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        
-        .tutorial-box { text-align: left; padding: 10px 0; }
-        .tutorial-icon { font-size: 3rem; text-align: center; margin-bottom: 15px; }
-        .tutorial-title { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 10px; }
-        .tutorial-text { font-size: 1rem; color: var(--text-sec); line-height: 1.5; text-align: center; min-height: 80px; }
-        .tutorial-dots { display: flex; justify-content: center; gap: 8px; margin: 20px 0; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--border-color); transition: 0.3s; }
-        .dot.active { background-color: var(--primary); width: 20px; border-radius: 4px; }
-
-        .sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2001; display: none; opacity: 0; transition: opacity 0.3s; }
-        .sidebar-overlay.ativo { display: block; opacity: 1; }
-        .sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background: var(--card-bg); z-index: 2002; box-shadow: 4px 0 15px rgba(0,0,0,0.1); transition: left 0.3s; padding: 20px; display: flex; flex-direction: column; }
-        .sidebar.ativo { left: 0; }
-        .sidebar h2 { font-size: 1.3rem; margin-top: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
-        .history-list { flex: 1; overflow-y: auto; text-align: left; }
-        .history-item { background: var(--bg-color); padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s; }
-        .history-item:active { transform: scale(0.98); }
-        .history-item h4 { margin: 0 0 5px 0; font-size: 1rem; color: var(--primary); }
-        .history-item p { margin: 0; font-size: 0.8rem; color: var(--text-sec); }
-        .sidebar-empty { color: var(--text-sec); text-align: center; font-style: italic; margin-top: 20px; }
-        .btn-danger { background-color: var(--danger); color: white; margin-top: 20px; font-size: 0.9rem; padding: 10px; }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 20px; }
-        .modal-overlay.ativo { display: flex; animation: fadeInFundo 0.3s forwards; }
-        .modal-content { background: var(--modal-bg); padding: 20px 25px 25px 25px; border-radius: 24px; max-width: 350px; width: 100%; text-align: left; box-shadow: 0 15px 40px rgba(0,0,0,0.25); border: 1px solid var(--border-color); position: relative; }
-        .modal-overlay.ativo .modal-content { animation: springPopUp 0.4s forwards; }
-        .drag-handle { width: 36px; height: 5px; background-color: var(--handle-color); border-radius: 5px; margin: 0 auto 15px auto; }
-        .modal-content h3 { margin-top: 0; color: var(--text-main); font-size: 1.2rem; margin-bottom: 10px; text-align: center; }
-        .modal-content p { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; text-align: center; }
-        
-        @keyframes fadeInFundo { from { background: rgba(0,0,0,0); } to { background: rgba(0,0,0,0.5); } }
-        @keyframes springPopUp { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -130,9 +33,7 @@
         <div class="subtitle">Seu mapa político sem extremos</div>
         <p class="desc">Descubra onde você realmente se encaixa. Responda perguntas sorteadas sobre economia e liberdade. O algoritmo aprende com suas respostas e traça seu perfil com precisão.</p>
         
-        <div id="msg-alerta" class="stats-text hidden" style="color: var(--primary); font-weight: bold;"></div>
         <div id="historico-info" class="stats-text hidden"></div>
-        
         <button class="btn" onclick="iniciarTeste()">Iniciar Teste</button>
     </div>
 
@@ -183,41 +84,6 @@
     </div>
 </div>
 
-<script>
-    var dicionario = {
-        "descriminalizado": { titulo: "Descriminalização", texto: "Deixar de tratar uma conduta como crime. A pessoa não vai presa, mas a prática pode continuar proibida com multas administrativas." },
-        "regulação": { titulo: "Regulação Estatal", texto: "Regras que o Estado cria para controlar e fiscalizar empresas privadas, protegendo o consumidor e a concorrência." },
-        "privatizações": { titulo: "Privatização", texto: "Venda de empresas públicas para a iniciativa privada. Pode melhorar a eficiência ou aumentar preços." },
-        "flexibilizadas": { titulo: "Flexibilização", texto: "Tornar as leis trabalhistas mais flexíveis, permitindo negociação direta entre patrão e empregado." },
-        "transferência de renda": { titulo: "Transferência de Renda", texto: "Programas sociais que dão dinheiro diretamente a famílias de baixa renda (ex: Bolsa Família)." },
-        "cotas": { titulo: "Cotas", texto: "Reserva de vagas para grupos marginalizados em universidades e concursos públicos." },
-        "teto de gastos": { titulo: "Teto de Gastos", texto: "Regra que limita o crescimento dos gastos do governo para controlar a dívida pública." },
-        "monopólio": { titulo: "Monopólio Estatal", texto: "Quando o governo é o único fornecedor de um serviço ou produto específico." },
-        "pena de morte": { titulo: "Pena de Morte", texto: "Execução de um condenado pelo Estado como punição por crime grave." },
-        "porte de armas": { titulo: "Porte de Armas", texto: "Direito do cidadão de carregar arma de fogo. Debate entre legítima defesa e segurança pública." },
-        "intervenção militar": { titulo: "Intervenção Militar", texto: "Forças Armadas assumindo o controle de áreas civis, geralmente por crise de segurança." },
-        "censura": { titulo: "Censura", texto: "Controle ou proibição de informações e opiniões pelo governo." },
-        "voto obrigatório": { titulo: "Voto Obrigatório", texto: "Comparecimento às urnas é uma obrigação legal, sujeita a multas." },
-        "regulamentação": { titulo: "Regulamentação", texto: "Criar regras detalhadas. No caso de drogas, permite a venda e uso controlados pelo Estado." }
-    };
-
-    var bancoPerguntas = [
-        { texto: "O Estado deve ter um papel forte na <span class='keyword' data-term='regulação'>regulação</span> da economia?", eixo: "econ", cat: "economia", expl: "Regulação é o nível de intervenção do governo nas empresas. Um papel forte cria muitas regras e fiscalização.", inter: "Só em setores essenciais" },
-        { texto: "Serviços essenciais como saúde e educação devem ser 100% gratuitos?", eixo: "econ", cat: "estado", expl: "Questiona se o Estado deve arcar com 100% do custo, sem cobrança de mensalidades.", inter: "Apenas para os mais pobres" },
-        { texto: "A carga tributária sobre os mais ricos deveria ser maior?", eixo: "econ", cat: "economia", expl: "Trata do aumento de impostos sobre grandes fortunas como forma de redistribuir renda.", inter: "Apenas um pouco mais" },
-        { texto: "<span class='keyword' data-term='privatizações'>Privatizações</span> de estatais são benéficas?", eixo: "econ", cat: "economia", inverter: true, expl: "Vender empresas controladas pelo governo para a iniciativa privada.", inter: "Depende do setor" },
-        { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", cat: "economia", inverter: true, expl: "Permitir que acordos entre patrões e empregados se sobreponham à lei.", inter: "Apenas em momentos de crise" },
-        { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", cat: "estado", expl: "Aumentar a quantidade de dinheiro ou o número de pessoas atendidas.", inter: "Apenas o necessário" },
-        { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", cat: "costumes", expl: "Reservar um percentual de vagas em universidades e concursos públicos.", inter: "Apenas cotas sociais (renda)" },
-        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", cat: "economia", inverter: true, expl: "Uma regra que impede o governo de gastar mais do que um limite.", inter: "Sim, mas com exceções" },
-        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", cat: "estado", expl: "Manter setores como petróleo e energia exclusivamente nas mãos do governo.", inter: "Apenas em casos raros" },
-        { texto: "O livre mercado é a melhor forma de gerar riqueza?", eixo: "econ", cat: "economia", inverter: true, expl: "Acreditar que a economia funciona melhor quando o governo não interfere.", inter: "Com alguma regulação" },
-        { texto: "O governo deve subsidiar o transporte público?", eixo: "econ", cat: "estado", expl: "Usar o dinheiro dos impostos para baratear a passagem de ônibus e metrô.", inter: "Apenas para estudantes" },
-        { texto: "Empresas deveriam pagar menos impostos para gerar mais empregos?", eixo: "econ", cat: "economia", inverter: true, expl: "A teoria de que reduzir a carga tributária sobra mais dinheiro para contratar.", inter: "Apenas pequenas empresas" },
-        { texto: "O Estado deve investir pesado em energia renovável?", eixo: "econ", cat: "ambiente", expl: "Usar dinheiro público ou dar incentivos fiscais para construir parques solares.", inter: "Se não aumentar impostos" },
-        { texto: "A previdência social deve ser administrada apenas pelo setor privado?", eixo: "econ", cat: "estado", inverter: true, expl: "Substituir o INSS por contas individuais em bancos ou seguradoras.", inter: "Misto (público e privado)" },
-        { texto: "O salário mínimo deveria ser definido por lei federal?", eixo: "econ", cat: "economia", expl: "Defender um valor único para todo o país definido pelo Congresso.", inter: "Com participação dos sindicatos" },
-        { texto: "Bancos estatais são essenciais para o desenvolvimento?", eixo: "econ", cat: "estado", expl: "Defender o papel de bancos como Caixa e Banco do Brasil.", inter: "Apenas para certos setores" },
-        { texto: "O agronegócio deve receber mais incentivos?", eixo: "econ", cat: "economia", inverter: true, expl: "Apoiar que grandes produtores recebam mais crédito fácil.", inter: "Igualar os incentivos" },
-        { texto: "O SUS deveria ser gerido por empresas privadas?", eixo: "econ", cat: "estado", inverter: true, expl: "Transferir a administração de hospitais públicos para empresas particulares.", inter: "Apenas parte da gestão" },
-        { texto: "Impostos sobre grandes heranças deveriam ser mais altos?", eixo: "econ", cat: "economia", expl: "Aumentar o ITCMD pa
+<script src="script.js"></script>
+</body>
+</html>

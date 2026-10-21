@@ -626,4 +626,3 @@ window.onload = function() {
     } catch(e) {}
     atualizarTelaInicial();
 };
-```

@@ -4,15 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nuance.map</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#007AFF">
-
-    <!-- ADICIONADO O 'defer' PARA NÃO TRAVAR A PÁGINA SE O CDN FALHAR -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
     <style>
-        /* [MANTIDO TODO O CSS ANTERIOR] */
         :root {
             --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-main: #000000;
             --text-sec: #8E8E93; --primary: #007AFF; --primary-press: #0056b3;
@@ -108,8 +101,6 @@
         
         @keyframes fadeInFundo { from { background: rgba(0,0,0,0); } to { background: rgba(0,0,0,0.5); } }
         @keyframes springPopUp { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-
-        .input-email { width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-main); font-size: 1rem; }
     </style>
 </head>
 <body>
@@ -117,7 +108,6 @@
 <div class="top-left-container">
     <button class="icon-btn hidden" id="btn-home" onclick="irParaHome()">🏠</button>
     <button class="icon-btn" id="btn-sidebar" onclick="abrirSidebar()">☰</button>
-    <button class="icon-btn" id="btn-login" onclick="abrirModalLogin()">👤</button>
 </div>
 
 <div class="theme-container">
@@ -130,10 +120,8 @@
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="fecharSidebar()"></div>
 <div class="sidebar" id="sidebar">
     <h2>Histórico de Testes</h2>
-    <div id="user-status" class="stats-text" style="margin-bottom: 10px;"></div>
     <div class="history-list" id="history-list"></div>
     <button class="btn btn-danger" onclick="apagarHistorico()">Apagar Dados Locais</button>
-    <button class="btn btn-no hidden" id="btn-logout" onclick="fazerLogout()" style="margin-top: 10px;">Sair da Conta</button>
 </div>
 
 <div class="container">
@@ -146,7 +134,6 @@
         <div id="historico-info" class="stats-text hidden"></div>
         
         <button class="btn" onclick="iniciarTeste()">Iniciar Teste</button>
-        <button class="btn btn-no" onclick="mostrarPerguntaDoDia()" style="margin-top: 10px;">💡 Reflexão do Dia</button>
     </div>
 
     <div id="screen-tutorial" class="hidden">
@@ -187,18 +174,6 @@
     </div>
 </div>
 
-<div class="modal-overlay" id="modal-login" onclick="fecharForaLogin(event)">
-    <div class="modal-content">
-        <div class="drag-handle"></div>
-        <h3>Entrar no Nuance.map</h3>
-        <p style="text-align: center; margin-bottom: 15px; font-size: 0.85rem;">Salve seu histórico na nuvem com segurança.</p>
-        <input type="email" id="login-email" class="input-email" placeholder="Seu e-mail">
-        <button class="btn" onclick="fazerLoginMagicLink()">Enviar Link de Acesso</button>
-        <button class="btn btn-no" onclick="fecharModalLogin()" style="margin-top: 10px;">Cancelar</button>
-        <div id="login-msg" class="stats-text" style="text-align: center; margin-top: 15px; font-weight: bold;"></div>
-    </div>
-</div>
-
 <div class="modal-overlay" id="modal" onclick="fecharFora(event)">
     <div class="modal-content">
         <div class="drag-handle"></div>
@@ -209,26 +184,6 @@
 </div>
 
 <script>
-    // --- CONFIGURAÇÃO DO SUPABASE (PROTEGIDA) ---
-    const SUPABASE_URL = 'https://qcfvjcqczsktqdmemcel.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZnZqY3FjenNrdHFkbWVtY2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1OTg5MjIsImV4cCI6MjEwODE3NDkyMn0.bI5lj5aMXLWNCd6AVVmHCxgKZWAWisRblvsASKLZSrg';
-    
-    let supabaseClient = null;
-    let usuarioLogado = null;
-
-    // Só inicializa o Supabase quando a página terminar de carregar
-    window.addEventListener('load', function() {
-        if (typeof supabase !== 'undefined') {
-            try {
-                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                verificarSessao();
-            } catch(e) { console.warn("Erro ao iniciar Supabase."); }
-        } else {
-            console.warn("SDK do Supabase não carregou. Rodando no modo offline.");
-        }
-    });
-
-    // --- BANCO DE DADOS COMPLETO ---
     var dicionario = {
         "descriminalizado": { titulo: "Descriminalização", texto: "Deixar de tratar uma conduta como crime. A pessoa não vai presa, mas a prática pode continuar proibida com multas administrativas." },
         "regulação": { titulo: "Regulação Estatal", texto: "Regras que o Estado cria para controlar e fiscalizar empresas privadas, protegendo o consumidor e a concorrência." },
@@ -254,4 +209,15 @@
         { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", cat: "economia", inverter: true, expl: "Permitir que acordos entre patrões e empregados se sobreponham à lei.", inter: "Apenas em momentos de crise" },
         { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", cat: "estado", expl: "Aumentar a quantidade de dinheiro ou o número de pessoas atendidas.", inter: "Apenas o necessário" },
         { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", cat: "costumes", expl: "Reservar um percentual de vagas em universidades e concursos públicos.", inter: "Apenas cotas sociais (renda)" },
-        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> 
+        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", cat: "economia", inverter: true, expl: "Uma regra que impede o governo de gastar mais do que um limite.", inter: "Sim, mas com exceções" },
+        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", cat: "estado", expl: "Manter setores como petróleo e energia exclusivamente nas mãos do governo.", inter: "Apenas em casos raros" },
+        { texto: "O livre mercado é a melhor forma de gerar riqueza?", eixo: "econ", cat: "economia", inverter: true, expl: "Acreditar que a economia funciona melhor quando o governo não interfere.", inter: "Com alguma regulação" },
+        { texto: "O governo deve subsidiar o transporte público?", eixo: "econ", cat: "estado", expl: "Usar o dinheiro dos impostos para baratear a passagem de ônibus e metrô.", inter: "Apenas para estudantes" },
+        { texto: "Empresas deveriam pagar menos impostos para gerar mais empregos?", eixo: "econ", cat: "economia", inverter: true, expl: "A teoria de que reduzir a carga tributária sobra mais dinheiro para contratar.", inter: "Apenas pequenas empresas" },
+        { texto: "O Estado deve investir pesado em energia renovável?", eixo: "econ", cat: "ambiente", expl: "Usar dinheiro público ou dar incentivos fiscais para construir parques solares.", inter: "Se não aumentar impostos" },
+        { texto: "A previdência social deve ser administrada apenas pelo setor privado?", eixo: "econ", cat: "estado", inverter: true, expl: "Substituir o INSS por contas individuais em bancos ou seguradoras.", inter: "Misto (público e privado)" },
+        { texto: "O salário mínimo deveria ser definido por lei federal?", eixo: "econ", cat: "economia", expl: "Defender um valor único para todo o país definido pelo Congresso.", inter: "Com participação dos sindicatos" },
+        { texto: "Bancos estatais são essenciais para o desenvolvimento?", eixo: "econ", cat: "estado", expl: "Defender o papel de bancos como Caixa e Banco do Brasil.", inter: "Apenas para certos setores" },
+        { texto: "O agronegócio deve receber mais incentivos?", eixo: "econ", cat: "economia", inverter: true, expl: "Apoiar que grandes produtores recebam mais crédito fácil.", inter: "Igualar os incentivos" },
+        { texto: "O SUS deveria ser gerido por empresas privadas?", eixo: "econ", cat: "estado", inverter: true, expl: "Transferir a administração de hospitais públicos para empresas particulares.", inter: "Apenas parte da gestão" },
+        { texto: "Impostos sobre grandes heranças deveriam ser mais altos?", eixo: "econ", cat: "economia", expl: "Aumentar o ITCMD pa

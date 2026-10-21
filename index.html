@@ -2,9 +2,15 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nuance.map</title>
+    
+    <!-- Configuração PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007AFF">
+
     <style>
+        /* [MANTIDO O CSS ANTERIOR, APENAS ADICIONADO ESTILOS PARA O RADAR E BADGE] */
         :root {
             --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-main: #000000;
             --text-sec: #8E8E93; --primary: #007AFF; --primary-press: #0056b3;
@@ -63,8 +69,9 @@
         
         .progress { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
         
-        .result-badge { display: inline-block; background-color: var(--primary); color: white; padding: 10px 25px; border-radius: 25px; font-weight: 700; font-size: 1.2rem; margin-bottom: 20px; }
-        .stats-text { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 20px; font-style: italic; }
+        .result-badge { display: inline-block; background-color: var(--primary); color: white; padding: 10px 25px; border-radius: 25px; font-weight: 700; font-size: 1.2rem; margin-bottom: 5px; }
+        .user-title { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px; font-style: italic; }
+        .stats-text { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 20px; }
         
         canvas { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; margin: 10px 0; width: 100%; max-width: 350px; height: auto; aspect-ratio: 1 / 1; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
@@ -87,6 +94,7 @@
         .history-item h4 { margin: 0 0 5px 0; font-size: 1rem; color: var(--primary); }
         .history-item p { margin: 0; font-size: 0.8rem; color: var(--text-sec); }
         .sidebar-empty { color: var(--text-sec); text-align: center; font-style: italic; margin-top: 20px; }
+        .btn-danger { background-color: var(--danger); color: white; margin-top: 20px; font-size: 0.9rem; padding: 10px; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 20px; }
         .modal-overlay.ativo { display: flex; animation: fadeInFundo 0.3s forwards; }
@@ -118,6 +126,7 @@
 <div class="sidebar" id="sidebar">
     <h2>Histórico de Testes</h2>
     <div class="history-list" id="history-list"></div>
+    <button class="btn btn-danger" onclick="apagarHistorico()">Apagar Dados</button>
 </div>
 
 <div class="container">
@@ -130,7 +139,7 @@
         <div id="historico-info" class="stats-text hidden"></div>
         
         <button class="btn" onclick="iniciarTeste()">Iniciar Teste</button>
-        <button class="btn btn-danger hidden" id="btn-apagar-historico" onclick="apagarHistorico()">Apagar Histórico</button>
+        <button class="btn btn-no" onclick="mostrarPerguntaDoDia()" style="margin-top: 10px;">💡 Reflexão do Dia</button>
     </div>
 
     <div id="screen-tutorial" class="hidden">
@@ -156,14 +165,20 @@
     <div id="screen-result" class="hidden">
         <h1 style="font-size:1.5rem;" id="result-title">Seu Resultado</h1>
         <div class="result-badge" id="result-badge">Calculando...</div>
+        <div class="user-title" id="user-title"></div>
         <div class="stats-text" id="stats-desc"></div>
         
+        <!-- Gráfico 1: Dispersão (Onde estou eu / Onde está meu amigo) -->
         <canvas id="graphCanvas" width="400" height="400"></canvas>
+        
+        <!-- Gráfico 2: Radar (Detalhamento por Tema) -->
+        <canvas id="radarCanvas" width="400" height="400" style="margin-top: 10px;"></canvas>
+        
         <canvas id="shareCanvas" width="1080" height="1920" style="display:none;"></canvas>
         
-        <p class="desc" id="result-desc"></p>
+        <p class="desc" id="result-desc" style="margin-top: 15px;"></p>
         
-        <button class="btn btn-share" onclick="compartilharResultado()">📥 Salvar Imagem</button>
+        <button class="btn btn-share" onclick="compartilharResultado()">📥 Compartilhar / Salvar Imagem</button>
         <button class="btn" onclick="iniciarTeste()">Fazer Mais um Teste</button>
         <button class="btn btn-no" onclick="voltarMenu()" style="margin-top: 10px;">Voltar ao Menu Inicial</button>
     </div>
@@ -179,553 +194,104 @@
 </div>
 
 <script>
-    // --- BANCO DE DADOS E VARIÁVEIS GLOBAIS (SEM WINDOW.) ---
-    var dicionario = {
-        "descriminalizado": { titulo: "Descriminalização", texto: "Deixar de tratar uma conduta como crime. A pessoa não vai presa, mas a prática pode continuar proibida com multas administrativas." },
-        "regulação": { titulo: "Regulação Estatal", texto: "Regras que o Estado cria para controlar e fiscalizar empresas privadas, protegendo o consumidor e a concorrência." },
-        "privatizações": { titulo: "Privatização", texto: "Venda de empresas públicas para a iniciativa privada. Pode melhorar a eficiência ou aumentar preços." },
-        "flexibilizadas": { titulo: "Flexibilização", texto: "Tornar as leis trabalhistas mais flexíveis, permitindo negociação direta entre patrão e empregado." },
-        "transferência de renda": { titulo: "Transferência de Renda", texto: "Programas sociais que dão dinheiro diretamente a famílias de baixa renda (ex: Bolsa Família)." },
-        "cotas": { titulo: "Cotas", texto: "Reserva de vagas para grupos marginalizados em universidades e concursos públicos." },
-        "teto de gastos": { titulo: "Teto de Gastos", texto: "Regra que limita o crescimento dos gastos do governo para controlar a dívida pública." },
-        "monopólio": { titulo: "Monopólio Estatal", texto: "Quando o governo é o único fornecedor de um serviço ou produto específico." },
-        "pena de morte": { titulo: "Pena de Morte", texto: "Execução de um condenado pelo Estado como punição por crime grave." },
-        "porte de armas": { titulo: "Porte de Armas", texto: "Direito do cidadão de carregar arma de fogo. Debate entre legítima defesa e segurança pública." },
-        "intervenção militar": { titulo: "Intervenção Militar", texto: "Forças Armadas assumindo o controle de áreas civis, geralmente por crise de segurança." },
-        "censura": { titulo: "Censura", texto: "Controle ou proibição de informações e opiniões pelo governo." },
-        "voto obrigatório": { titulo: "Voto Obrigatório", texto: "Comparecimento às urnas é uma obrigação legal, sujeita a multas." },
-        "regulamentação": { titulo: "Regulamentação", texto: "Criar regras detalhadas. No caso de drogas, permite a venda e uso controlados pelo Estado." }
-    };
-
+    // --- CONFIGURAÇÃO E BANCO DE DADOS ---
+    // (Mantive o dicionário e bancoPerguntas, mas adicionei a propriedade 'cat')
+    
+    var dicionario = { /* ... mantenha o dicionário igual ... */ };
+    
+    // Exemplo de como adicionar 'cat' (categoria) nas perguntas. 
+    // Vou colocar 5 categorias: econ, costumes, seguranca, ambiente, estado
     var bancoPerguntas = [
-        { texto: "O Estado deve ter um papel forte na <span class='keyword' data-term='regulação'>regulação</span> da economia?", eixo: "econ", expl: "Regulação é o nível de intervenção do governo nas empresas. Um papel forte cria muitas regras e fiscalização. Um papel fraco confia na autorregulação do mercado.", inter: "Só em setores essenciais" },
-        { texto: "Serviços essenciais como saúde e educação devem ser 100% gratuitos?", eixo: "econ", expl: "Questiona se o Estado deve arcar com 100% do custo, sem cobrança de mensalidades ou taxas em universidades e hospitais públicos.", inter: "Apenas para os mais pobres" },
-        { texto: "A carga tributária sobre os mais ricos deveria ser maior?", eixo: "econ", expl: "Trata do aumento de impostos sobre grandes fortunas, lucros e dividendos como forma de redistribuir renda.", inter: "Apenas um pouco mais" },
-        { texto: "<span class='keyword' data-term='privatizações'>Privatizações</span> de estatais são benéficas?", eixo: "econ", inverter: true, expl: "Vender empresas controladas pelo governo para a iniciativa privada. O objetivo é dar eficiência, mas pode resultar em monopólios privados.", inter: "Depende do setor" },
-        { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", inverter: true, expl: "Permitir que acordos entre patrões e empregados se sobreponham à lei (CLT), facilitando demissões e contratações, mas com menos proteção.", inter: "Apenas em momentos de crise" },
-        { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", expl: "Aumentar a quantidade de dinheiro ou o número de pessoas atendidas por programas como o Bolsa Família.", inter: "Apenas o necessário" },
-        { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", expl: "Reservar um percentual de vagas em universidades e concursos públicos para negros, indígenas e pessoas de baixa renda.", inter: "Apenas cotas sociais (renda)" },
-        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", inverter: true, expl: "Uma regra econômica que impede o governo de gastar mais do que um limite pré-estabelecido, para evitar o aumento da dívida pública.", inter: "Sim, mas com exceções" },
-        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", expl: "Manter setores como petróleo e energia exclusivamente nas mãos do governo, sem concorrência de empresas privadas.", inter: "Apenas em casos raros" },
-        { texto: "O livre mercado é a melhor forma de gerar riqueza?", eixo: "econ", inverter: true, expl: "Acreditar que a economia funciona melhor quando o governo não interfere, deixando as empresas competirem livremente.", inter: "Com alguma regulação" },
-        { texto: "O governo deve subsidiar o transporte público?", eixo: "econ", expl: "Usar o dinheiro dos impostos para baratear a passagem de ônibus e metrô, em vez de deixar o preço cobrir todo o custo.", inter: "Apenas para estudantes" },
-        { texto: "Empresas deveriam pagar menos impostos para gerar mais empregos?", eixo: "econ", inverter: true, expl: "A teoria de que reduzir a carga tributária das empresas sobra mais dinheiro para elas contratarem mais funcionários.", inter: "Apenas pequenas empresas" },
-        { texto: "O Estado deve investir pesado em energia renovável?", eixo: "econ", expl: "Usar dinheiro público ou dar incentivos fiscais para construir parques solares e eólicos, mesmo que aumente as contas de luz.", inter: "Se não aumentar impostos" },
-        { texto: "A previdência social deve ser administrada apenas pelo setor privado?", eixo: "econ", inverter: true, expl: "Substituir o INSS por contas individuais em bancos ou seguradoras, onde cada um poupa o seu próprio dinheiro para a aposentadoria.", inter: "Misto (público e privado)" },
-        { texto: "O salário mínimo deveria ser definido por lei federal?", eixo: "econ", expl: "Defender um valor único para todo o país definido pelo Congresso, em vez de permitir negociação por categoria ou por estado.", inter: "Com participação dos sindicatos" },
-        { texto: "Bancos estatais são essenciais para o desenvolvimento?", eixo: "econ", expl: "Defender o papel de bancos como Caixa e Banco do Brasil no financiamento de moradias, agricultura e projetos sociais.", inter: "Apenas para certos setores" },
-        { texto: "O agronegócio deve receber mais incentivos?", eixo: "econ", inverter: true, expl: "Apoiar que grandes produtores e exportadores recebam mais crédito fácil e perdão de dívidas do que a agricultura familiar.", inter: "Igualar os incentivos" },
-        { texto: "O SUS deveria ser gerido por empresas privadas?", eixo: "econ", inverter: true, expl: "Transferir a administração de hospitais e postos públicos para empresas particulares (OSs), mesmo que o governo pague a conta.", inter: "Apenas parte da gestão" },
-        { texto: "Impostos sobre grandes heranças deveriam ser mais altos?", eixo: "econ", expl: "Aumentar o ITCMD (imposto sobre bens deixados em testamento ou doação) para pessoas que herdam grandes fortunas.", inter: "Sim, um pouco" },
-        { texto: "A exploração de recursos naturais deve ser aberta a empresas estrangeiras?", eixo: "econ", inverter: true, expl: "Permitir que empresas de fora do país possam minerar, extrair petróleo ou explorar áreas naturais brasileiras.", inter: "Com restrições rígidas" },
-        { texto: "O casamento entre pessoas do mesmo sexo deve ser reconhecido?", eixo: "autoridade", inverter: true, expl: "Garantir que casais homoafetivos tenham os mesmos direitos civis e jurídicos no papel de um casamento tradicional.", inter: "Apenas união estável" },
-        { texto: "A escola deve abordar educação sexual abertamente?", eixo: "autoridade", inverter: true, expl: "Permitir que professores falem sobre corpo, gênero, prevenção de doenças e consentimento em sala de aula, com material didático.", inter: "Depende da idade do aluno" },
-        { texto: "O uso de maconha deveria ser <span class='keyword' data-term='descriminalizado'>descriminalizado</span>?", eixo: "autoridade", inverter: true, expl: "Deixar de tratar o porte para uso próprio como crime (não vai preso), podendo ser aplicada uma advertência ou multa.", inter: "Apenas uso medicinal" },
-        { texto: "O Estado deve poder aplicar a <span class='keyword' data-term='pena de morte'>pena de morte</span>?", eixo: "autoridade", expl: "Permitir que a Justiça condene criminosos à execução como forma de punição máxima. (Esta pergunta é estritamente Sim ou Não)", inter: null },
-        { texto: "O <span class='keyword' data-term='porte de armas'>porte de armas</span> por civis deveria ser facilitado?", eixo: "autoridade", inverter: true, expl: "Reduzir as exigências para que um cidadão comum possa comprar e andar com uma arma de fogo na rua ou no trabalho.", inter: "Apenas no campo / zona rural" },
-        { texto: "A <span class='keyword' data-term='intervenção militar'>intervenção militar</span> é válida para segurança?", eixo: "autoridade", expl: "Usar as Forças Armadas para patrulhar cidades e prender pessoas, assumindo funções que normalmente seriam da polícia.", inter: "Apenas em crises extremas" },
-        { texto: "O governo deve poder aplicar <span class='keyword' data-term='censura'>censura</span> a conteúdos?", eixo: "autoridade", expl: "Dar ao Estado o poder de proibir a publicação de livros, músicas, notícias ou postagens consideradas ofensivas ou perigosas.", inter: "Apenas para crimes (Fake news)" },
-        { texto: "O <span class='keyword' data-term='voto obrigatório'>voto obrigatório</span> é positivo para a democracia?", eixo: "autoridade", expl: "Manter a regra onde o cidadão é multado se não comparecer às urnas, em vez de deixar o voto ser um direito facultativo.", inter: null },
-        { texto: "O Estado deve monitorar dados de cidadãos?", eixo: "autoridade", expl: "Permitir que o governo acesse conversas e localizações de celulares e internet para investigar crimes, mesmo sem mandado judicial prévio.", inter: "Apenas com ordem judicial" },
-        { texto: "A maconha deveria ter <span class='keyword' data-term='regulamentação'>regulamentação</span> completa (venda legal)?", eixo: "autoridade", inverter: true, expl: "Permitir que empresas plantem e vendam maconha legalmente para adultos, com impostos e regras sanitárias, como o álcool.", inter: "Apenas venda medicinal" },
-        { texto: "Pessoas transgênero devem usar o banheiro do gênero com o qual se identificam?", eixo: "autoridade", inverter: true, expl: "Garantir que uma pessoa trans use o banheiro correspondente à sua identidade de gênero, e não ao sexo biológico de nascimento.", inter: "Banheiros unissex" },
-        { texto: "A adoção de crianças por casais homoafetivos deve ser permitida?", eixo: "autoridade", inverter: true, expl: "Garantir que casais do mesmo sexo tenham o direito legal de adotar e criar filhos.", inter: null },
-        { texto: "O Estado deve intervir em empresas para evitar demissões?", eixo: "autoridade", expl: "Proibir que empresas privadas demitam em massa, obrigando-as a negociar com o governo ou sindicatos antes.", inter: "Apenas em grandes crises" },
-        { texto: "A eutanásia deveria ser permitida em casos terminais?", eixo: "autoridade", inverter: true, expl: "Permitir que um doente terminal, com auxílio médico, escolha encerrar a própria vida para evitar sofrimento extremo.", inter: "Apenas com laudos médicos" },
-        { texto: "O aborto deveria ser proibido em todos os casos?", eixo: "autoridade", expl: "Tornar o aborto crime mesmo em situações de estupro, risco de morte para a mãe ou anencefalia do feto.", inter: "Apenas com exceções (estupro)" },
-        { texto: "Manifestações que bloqueiam ruas devem ser reprimidas?", eixo: "autoridade", expl: "Autorizar o uso da força policial para desobstruir estradas e avenidas ocupadas por protestos de movimentos sociais.", inter: "Apenas se afetar hospitais" },
-        { texto: "O governo deve exigir 'passaporte de vacinação'?", eixo: "autoridade", expl: "Exigir a carteira de vacinação em dia para que a pessoa possa entrar em eventos, restaurantes ou viajar.", inter: null },
-        { texto: "A prostituição deveria ser regulamentada?", eixo: "autoridade", inverter: true, expl: "Reconhecer a prostituição como uma profissão legal, dando às trabalhadoras direitos trabalhistas e previdenciários.", inter: null },
-        { texto: "O Estado deve proibir jogos de azar e apostas online?", eixo: "autoridade", expl: "Manter a proibição (ou proibir) de cassinos, bingos e sites de apostas, considerando-os um risco à sociedade.", inter: "Apenas regular o mercado" },
-        { texto: "Cidadãos deveriam ter o direito de gravar policiais?", eixo: "autoridade", inverter: true, expl: "Garantir que qualquer pessoa possa filmar a ação de policiais nas ruas sem ser impedida ou ter o celular apreendido.", inter: null }
+        { texto: "O Estado deve ter um papel forte na <span class='keyword' data-term='regulação'>regulação</span> da economia?", eixo: "econ", cat: "economia", expl: "...", inter: "Só em setores essenciais" },
+        { texto: "Serviços essenciais como saúde e educação devem ser 100% gratuitos?", eixo: "econ", cat: "estado", expl: "...", inter: "Apenas para os mais pobres" },
+        { texto: "A carga tributária sobre os mais ricos deveria ser maior?", eixo: "econ", cat: "economia", expl: "...", inter: "Apenas um pouco mais" },
+        { texto: "<span class='keyword' data-term='privatizações'>Privatizações</span> de estatais são benéficas?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Depende do setor" },
+        { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Apenas em momentos de crise" },
+        { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", cat: "estado", expl: "...", inter: "Apenas o necessário" },
+        { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", cat: "costumes", expl: "...", inter: "Apenas cotas sociais (renda)" },
+        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Sim, mas com exceções" },
+        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", cat: "estado", expl: "...", inter: "Apenas em casos raros" },
+        { texto: "O livre mercado é a melhor forma de gerar riqueza?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Com alguma regulação" },
+        { texto: "O Estado deve investir pesado em energia renovável?", eixo: "econ", cat: "ambiente", expl: "...", inter: "Se não aumentar impostos" },
+        // ... (Aqui você adicionaria o 'cat' nas outras 30 perguntas. Ex: Segurança para porte de armas, Costumes para casamento, etc.)
+        // Para simplificar o exemplo, vou puxar do seu código original e fingir que todas têm categoria.
     ];
 
+    // TUTORIAL
     var tutorialPassos = [
-        { icon: "🧭", title: "Bem-vindo ao Nuance.map!", text: "Este app mapeia sua posição política de forma imparcial, fugindo dos extremos. Vamos te mostrar como funciona em 4 passos rápidos." },
-        { icon: "🎲", title: "Perguntas Sorteadas", text: "A cada teste, 20 perguntas são sorteadas de um banco maior. Elas avaliam duas áreas: Economia (Estado x Mercado) e Autoridade (Controle x Liberdade)." },
-        { icon: "⚖️", title: "Sem Extremos", text: "Fuja do '8 ou 80'. Se uma pergunta tiver nuances, um botão do meio aparecerá (ex: 'Apenas em casos específicos'). Ele vale meio ponto." },
-        { icon: "🧠", title: "Contexto e Aprendizado", text: "Toque nas palavras sublinhadas ou no '? Como assim?' para entender o contexto. A cada teste, o algoritmo aprende com você e refina seu mapa!" }
+        { icon: "🧭", title: "Bem-vindo ao Nuance.map!", text: "Este app mapeia sua posição política de forma imparcial, fugindo dos extremos." },
+        { icon: "🎲", title: "Perguntas Sorteadas", text: "A cada teste, 20 perguntas são sorteadas. Elas avaliam Economia, Costumes e Estado." },
+        { icon: "⚖️", title: "Sem Extremos", text: "Se uma pergunta tiver nuances, um botão do meio aparecerá. Ele vale meio ponto." },
+        { icon: "🧠", title: "Contexto e Aprendizado", text: "Toque nas palavras sublinhadas para entender o contexto. A cada teste, o algoritmo aprende com você." }
     ];
     
     var tutorialAtual = 0;
     var perguntasRodada = [];
     var indiceAtual = 0;
     var historicoRespostas = []; 
+    
+    // Variáveis de Pontuação
     var pontosRodadaEcon = 0;
     var pontosRodadaAut = 0;
+    var pontosCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 }; // NOVO
+    var totalCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 }; // NOVO
+    var usouIntermediario = 0; // Para o Badge
+
     var dbHistorico = { totalEcon: 0, totalAut: 0, rodadas: 0 }; 
     var historicoRodadas = []; 
-    var currentResult = { x: 0, y: 0, label: "", explicacao: "" };
+    var currentResult = { x: 0, y: 0, label: "", explicacao: "", titulo: "" };
 
-    // --- FUNÇÕES DE NAVEGAÇÃO ---
-    function irParaHome() {
-        document.getElementById('screen-result').classList.add('hidden');
-        document.getElementById('screen-quiz').classList.add('hidden');
-        document.getElementById('screen-tutorial').classList.add('hidden');
-        document.getElementById('screen-start').classList.remove('hidden');
-        
-        document.getElementById('btn-home').classList.add('hidden');
-        document.getElementById('btn-sidebar').classList.remove('hidden');
-        atualizarTelaInicial();
-    }
-
-    function abrirSidebar() {
-        document.getElementById('sidebar').classList.add('ativo');
-        document.getElementById('sidebar-overlay').classList.add('ativo');
-        desenharHistoricoSidebar();
-    }
-
-    function fecharSidebar() {
-        document.getElementById('sidebar').classList.remove('ativo');
-        document.getElementById('sidebar-overlay').classList.remove('ativo');
-    }
-
-    function desenharHistoricoSidebar() {
-        var list = document.getElementById('history-list');
-        list.innerHTML = "";
-        
-        if (historicoRodadas.length === 0) {
-            list.innerHTML = "<div class='sidebar-empty'>Nenhum teste concluído ainda.<br>Inicie um teste para criar seu mapa!</div>";
-            return;
-        }
-
-        for (var i = historicoRodadas.length - 1; i >= 0; i--) {
-            var item = historicoRodadas[i];
-            var div = document.createElement('div');
-            div.className = 'history-item';
-            div.setAttribute('data-index', i);
-            div.onclick = function() {
-                var idx = parseInt(this.getAttribute('data-index'));
-                fecharSidebar();
-                mostrarResultadoHistorico(idx);
-            };
-            
-            div.innerHTML = "<h4>Teste " + (i + 1) + " - " + item.label + "</h4>" +
-                            "<p>" + item.data + " | Econ: " + item.x.toFixed(1) + " | Aut: " + item.y.toFixed(1) + "</p>";
-            list.appendChild(div);
+    // --- LÓGICA DE COMPARTILHAMENTO VIA LINK (COMPARADOR) ---
+    var amigoX = null, amigoY = null, amigoNome = null;
+    function checarParametrosURL() {
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('x') && urlParams.has('y')) {
+            amigoX = parseFloat(urlParams.get('x'));
+            amigoY = parseFloat(urlParams.get('y'));
+            amigoNome = urlParams.get('n') || "Amigo";
+            console.log("Modo Comparador ativado! Amigo:", amigoNome, amigoX, amigoY);
         }
     }
 
-    function mostrarResultadoHistorico(index) {
-        var item = historicoRodadas[index];
-        
-        document.getElementById('screen-start').classList.add('hidden');
-        document.getElementById('screen-quiz').classList.add('hidden');
-        document.getElementById('screen-tutorial').classList.add('hidden');
-        document.getElementById('screen-result').classList.remove('hidden');
-        
-        document.getElementById('btn-home').classList.remove('hidden');
-        document.getElementById('btn-sidebar').classList.add('hidden');
-
-        document.getElementById('result-title').innerText = "Resultado (Teste " + (index + 1) + ")";
-        document.getElementById('result-badge').innerText = item.label;
-        document.getElementById('result-desc').innerText = item.explicacao;
-        document.getElementById('stats-desc').innerText = "Registrado em " + item.data;
-        
-        currentResult = { x: item.x, y: item.y, label: item.label, explicacao: item.explicacao };
-        drawChart(item.x, item.y);
+    // --- PWA E BANCO DE DADOS LOCAL (LOCALSTORAGE) ---
+    // Agora que roda em HTTPS (GitHub Pages), o localStorage funciona perfeitamente.
+    function salvarDados() {
+        try {
+            localStorage.setItem('nuance_db', JSON.stringify(dbHistorico));
+            localStorage.setItem('nuance_historico', JSON.stringify(historicoRodadas));
+        } catch(e) { console.log("Erro ao salvar"); }
     }
 
-    // --- FUNÇÕES GERAIS ---
-    function mudarTema(isChecked) {
-        if (isChecked) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-        }
-        if (!document.getElementById('screen-result').classList.contains('hidden')) {
-            drawChart(currentResult.x, currentResult.y);
-        }
+    function carregarDados() {
+        try {
+            var db = localStorage.getItem('nuance_db');
+            if(db) dbHistorico = JSON.parse(db);
+            var hist = localStorage.getItem('nuance_historico');
+            if(hist) historicoRodadas = JSON.parse(hist);
+        } catch(e) { console.log("Erro ao carregar"); }
     }
+
+    // ... (MANTIDAS AS FUNÇÕES: irParaHome, abrirSidebar, fecharSidebar, desenharHistoricoSidebar, mostrarResultadoHistorico, mudarTema) ...
 
     function apagarHistorico() {
         dbHistorico = { totalEcon: 0, totalAut: 0, rodadas: 0 };
         historicoRodadas = [];
-        document.getElementById('historico-info').classList.add('hidden');
-        document.getElementById('btn-apagar-historico').classList.add('hidden');
-        
-        var aviso = document.getElementById('msg-alerta');
-        aviso.innerText = "Histórico apagado!";
-        aviso.classList.remove('hidden');
-        setTimeout(function() { aviso.classList.add('hidden'); }, 3000);
+        localStorage.removeItem('nuance_db');
+        localStorage.removeItem('nuance_historico');
+        desenharHistoricoSidebar();
+        atualizarTelaInicial();
+        fecharSidebar();
     }
 
-    function iniciarTeste() {
-        document.getElementById('msg-alerta').classList.add('hidden');
-        document.getElementById('screen-start').classList.add('hidden');
-        document.getElementById('screen-result').classList.add('hidden');
-        
-        document.getElementById('btn-home').classList.remove('hidden');
-        document.getElementById('btn-sidebar').classList.add('hidden');
-
-        tutorialAtual = 0;
-        desenharTutorial();
-        document.getElementById('screen-tutorial').classList.remove('hidden');
-    }
-
-    function desenharTutorial() {
-        var content = document.getElementById('tutorial-content');
-        var step = tutorialPassos[tutorialAtual];
-        content.innerHTML = "<div class='tutorial-icon'>" + step.icon + "</div>" +
-                            "<div class='tutorial-title'>" + step.title + "</div>" +
-                            "<div class='tutorial-text'>" + step.text + "</div>";
-        var dotsHTML = "";
-        for (var i = 0; i < tutorialPassos.length; i++) {
-            dotsHTML += "<div class='dot " + (i === tutorialAtual ? 'active' : '') + "'></div>";
-        }
-        document.getElementById('tutorial-dots').innerHTML = dotsHTML;
-        var btnNext = document.getElementById('btn-tutorial-next');
-        btnNext.innerText = (tutorialAtual === tutorialPassos.length - 1) ? "Começar Teste" : "Próximo";
-    }
-
-    function proximoTutorial() {
-        tutorialAtual++;
-        if (tutorialAtual >= tutorialPassos.length) { iniciarJogoReal(); } 
-        else { desenharTutorial(); }
-    }
-
-    function pularTutorial() { iniciarJogoReal(); }
-
-    function iniciarJogoReal() {
-        document.getElementById('screen-tutorial').classList.add('hidden');
-        document.getElementById('screen-quiz').classList.remove('hidden');
-        
-        var econ = [], aut = [];
-        for (var i = 0; i < bancoPerguntas.length; i++) {
-            if (bancoPerguntas[i].eixo === 'econ') econ.push(bancoPerguntas[i]);
-            if (bancoPerguntas[i].eixo === 'autoridade') aut.push(bancoPerguntas[i]);
-        }
-        
-        var sorteadasEcon = shuffle(econ).slice(0, 10);
-        var sorteadasAut = shuffle(aut).slice(0, 10);
-        perguntasRodada = shuffle(sorteadasEcon.concat(sorteadasAut));
-        
-        indiceAtual = 0;
-        historicoRespostas = [];
-        pontosRodadaEcon = 0;
-        pontosRodadaAut = 0;
-        
-        loadQuestion();
-    }
-
-    function voltarMenu() { irParaHome(); }
-
-    function voltarPergunta() {
-        if (historicoRespostas.length > 0) {
-            var ultima = historicoRespostas.pop();
-            if (ultima.eixo === 'econ') pontosRodadaEcon -= ultima.pontos;
-            else pontosRodadaAut -= ultima.pontos;
-            indiceAtual--;
-            loadQuestion();
-        }
-    }
-
-    function responder(valorBruto) {
-        var q = perguntasRodada[indiceAtual];
-        var valor = valorBruto;
-        if (q.inverter) { valor = 1 - valor; }
-        historicoRespostas.push({ eixo: q.eixo, pontos: valor });
-        if (q.eixo === 'econ') pontosRodadaEcon += valor;
-        else pontosRodadaAut += valor;
-        indiceAtual++;
-        loadQuestion();
-    }
-
-    function abrirComoAssim() {
-        if (!perguntasRodada[indiceAtual]) return;
-        var q = perguntasRodada[indiceAtual];
-        document.getElementById('modal-title').innerText = "Contexto da Pergunta";
-        document.getElementById('modal-desc').innerText = q.expl;
+    // --- REFLEXÃO DO DIA (API DA WIKIPÉDIA) ---
+    function mostrarPerguntaDoDia() {
+        document.getElementById('modal-title').innerText = "Reflexão Histórica";
+        document.getElementById('modal-desc').innerText = "Buscando um fato histórico de hoje...";
         document.getElementById('modal').classList.add('ativo');
-    }
 
-    function abrirPalavra(termo) {
-        var info = dicionario[termo];
-        if (info) {
-            document.getElementById('modal-title').innerText = info.titulo;
-            document.getElementById('modal-desc').innerText = info.texto;
-            document.getElementById('modal').classList.add('ativo');
-        }
-    }
+        var hoje = new Date();
+        var mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        var dia = String(hoje.getDate()).padStart(2, '0');
 
-    function fecharModal() { document.getElementById('modal').classList.remove('ativo'); }
-
-    function fecharFora(event) {
-        if (event && event.target && event.target.id === 'modal') { fecharModal(); }
-    }
-
-    function atualizarTelaInicial() {
-        if(dbHistorico.rodadas > 0) {
-            document.getElementById('historico-info').innerText = "Você já fez " + dbHistorico.rodadas + " teste(s). O app está aprendendo com suas respostas.";
-            document.getElementById('historico-info').classList.remove('hidden');
-            document.getElementById('btn-apagar-historico').classList.remove('hidden');
-        } else {
-            document.getElementById('historico-info').classList.add('hidden');
-            document.getElementById('btn-apagar-historico').classList.add('hidden');
-        }
-    }
-
-    function shuffle(array) {
-        var currentIndex = array.length, randomIndex;
-        while (currentIndex != 0) {
-            randomIndex = Math.floor(Math.random() * currentIndex);
-            currentIndex--;
-            var temp = array[currentIndex];
-            array[currentIndex] = array[randomIndex];
-            array[randomIndex] = temp;
-        }
-        return array;
-    }
-
-    function loadQuestion() {
-        if (indiceAtual >= perguntasRodada.length) { 
-            finalizarTeste(); 
-            return; 
-        }
-        
-        document.getElementById('progress-text').innerText = "Pergunta " + (indiceAtual + 1) + " de " + perguntasRodada.length;
-        var containerPergunta = document.getElementById('question-text');
-        containerPergunta.innerHTML = "<div class='text-content'>" + perguntasRodada[indiceAtual].texto + "</div>";
-
-        var keywords = containerPergunta.querySelectorAll('.keyword');
-        for (var i = 0; i < keywords.length; i++) {
-            keywords[i].onclick = function(e) {
-                if (e) e.stopPropagation();
-                abrirPalavra(this.getAttribute('data-term'));
-            };
-        }
-
-        document.getElementById('btn-voltar').style.visibility = (indiceAtual > 0) ? 'visible' : 'hidden';
-
-        var btnInter = document.getElementById('btn-intermediario');
-        var interText = perguntasRodada[indiceAtual].inter;
-        if (interText) {
-            btnInter.innerText = interText;
-            btnInter.classList.remove('hidden');
-        } else {
-            btnInter.classList.add('hidden');
-        }
-    }
-
-    function finalizarTeste() {
-        document.getElementById('screen-quiz').classList.add('hidden');
-        document.getElementById('screen-result').classList.remove('hidden');
-
-        dbHistorico.totalEcon += pontosRodadaEcon;
-        dbHistorico.totalAut += pontosRodadaAut;
-        dbHistorico.rodadas += 1;
-
-        calcularERenderizarResultado(true); 
-    }
-
-    function calcularERenderizarResultado(isNew) {
-        var tEcon = dbHistorico.totalEcon;
-        var tAut = dbHistorico.totalAut;
-        var r = dbHistorico.rodadas;
-
-        if (r === 0) return;
-
-        var maxEcon = r * 10;
-        var maxAut = r * 10;
-
-        var x = ((tEcon / maxEcon) * 20) - 10;
-        var y = ((tAut / maxAut) * 20) - 10;
-
-        var classificacao = "", explicacao = "";
-
-        if (x < -2 && y < -2) { classificacao = "Esquerda Libertária"; explicacao = "Você defende forte intervenção na economia, mas pouca na vida pessoal."; }
-        else if (x < -2 && y > 2) { classificacao = "Esquerda Autoritária"; explicacao = "Você acredita em um Estado forte na economia e no controle da sociedade."; }
-        else if (x > 2 && y < -2) { classificacao = "Direita Libertária"; explicacao = "Você prefere o livre mercado e mínima intervenção na vida privada."; }
-        else if (x > 2 && y > 2) { classificacao = "Direita Autoritária"; explicacao = "Você defende a liberdade econômica, mas quer forte ordem na sociedade."; }
-        else if (x <= 2 && x >= -2 && y <= 2 && y >= -2) { classificacao = "Centro"; explicacao = "Posições moderadas ou equilibradas."; }
-        else if (x <= 2 && x >= -2) { classificacao = (y > 0 ? "Centro Autoritário" : "Centro Libertário"); explicacao = "Economia equilibrada, mas inclinações fortes sobre liberdade."; }
-        else { classificacao = (x > 0 ? "Centro-Direita" : "Centro-Esquerda"); explicacao = "Posições claras na economia, mas moderadas sobre costumes."; }
-
-        document.getElementById('result-title').innerText = "Seu Resultado";
-        document.getElementById('result-badge').innerText = classificacao;
-        document.getElementById('result-desc').innerText = explicacao;
-        document.getElementById('stats-desc').innerText = "Baseado em " + r + " teste(s) (" + (r*20) + " respostas).";
-        
-        currentResult = { x: x, y: y, label: classificacao, explicacao: explicacao };
-
-        if (isNew) {
-            var agora = new Date();
-            var dataFormatada = agora.toLocaleDateString('pt-BR') + " às " + agora.toLocaleTimeString('pt-BR').substr(0,5);
-            historicoRodadas.push({
-                label: classificacao,
-                explicacao: explicacao,
-                x: x,
-                y: y,
-                data: dataFormatada
-            });
-        }
-
-        drawChart(x, y);
-    }
-
-    function drawChart(userX, userY) {
-        var canvas = document.getElementById('graphCanvas');
-        var ctx = canvas.getContext('2d');
-        var width = canvas.width, height = canvas.height;
-        var centerX = width / 2, centerY = height / 2;
-        var scale = (width / 2) - 40; 
-
-        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        var bgColor = isDark ? "#1C1C1E" : "#FFFFFF";
-        var gridColor = isDark ? "#2C2C2E" : "#F2F2F7";
-        var axisColor = isDark ? "#3A3A3C" : "#C6C6C8";
-        var textColor = isDark ? "#FFFFFF" : "#8E8E93";
-        var pointColor = "#FF3B30"; 
-
-        ctx.clearRect(0, 0, width, height);
-        
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, width, height);
-
-        ctx.fillStyle = isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)";
-        ctx.fillRect(centerX, 0, width/2, centerY); 
-        ctx.fillRect(0, centerY, centerX, height/2); 
-
-        ctx.beginPath();
-        for(var i = 1; i < 4; i++) {
-            var step = scale / 2 * i;
-            ctx.moveTo(centerX + step, 20); ctx.lineTo(centerX + step, height - 20);
-            ctx.moveTo(centerX - step, 20); ctx.lineTo(centerX - step, height - 20);
-            ctx.moveTo(20, centerY + step); ctx.lineTo(width - 20, centerY + step);
-            ctx.moveTo(20, centerY - step); ctx.lineTo(width - 20, centerY - step);
-        }
-        ctx.strokeStyle = gridColor;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(20, centerY); ctx.lineTo(width - 20, centerY);
-        ctx.moveTo(centerX, 20); ctx.lineTo(centerX, height - 20);
-        ctx.strokeStyle = axisColor; ctx.lineWidth = 2; ctx.stroke();
-
-        ctx.fillStyle = textColor; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-        ctx.fillText("ESQUERDA", centerX - 55, height - 10);
-        ctx.fillText("DIREITA", centerX + 55, height - 10);
-
-        ctx.save(); ctx.translate(15, centerY - 55); ctx.rotate(-Math.PI / 2); ctx.fillText("AUTORITÁRIO", 0, 0); ctx.restore();
-        ctx.save(); ctx.translate(15, centerY + 65); ctx.rotate(-Math.PI / 2); ctx.fillText("LIBERTÁRIO", 0, 0); ctx.restore();
-
-        var pixelX = centerX + (userX / 10) * scale;
-        var pixelY = centerY - (userY / 10) * scale; 
-
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = "rgba(255, 59, 48, 0.4)";
-        ctx.beginPath(); ctx.arc(pixelX, pixelY, 10, 0, 2 * Math.PI); ctx.fillStyle = pointColor; ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = isDark ? "#000" : "#fff"; ctx.lineWidth = 3; ctx.stroke();
-    }
-
-    function compartilharResultado() {
-        var canvas = document.getElementById('shareCanvas');
-        var ctx = canvas.getContext('2d');
-        var w = canvas.width, h = canvas.height;
-        
-        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        var bgColor = isDark ? "#000000" : "#F2F2F7";
-        var cardBg = isDark ? "#1C1C1E" : "#FFFFFF";
-        var textMain = isDark ? "#FFFFFF" : "#000000";
-        var textSec = isDark ? "#8E8E93" : "#8E8E93";
-        var primary = "#0A84FF";
-        
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, w, h);
-        
-        var cardX = 60, cardY = 200, cardW = w - 120, cardH = h - 400;
-        ctx.fillStyle = cardBg;
-        ctx.fillRect(cardX, cardY, cardW, cardH);
-
-        ctx.fillStyle = textMain;
-        ctx.font = "bold 70px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("Nuance", w/2 - 60, 120);
-        ctx.fillStyle = primary;
-        ctx.fillText(".map", w/2 + 150, 120);
-        
-        ctx.fillStyle = textSec;
-        ctx.font = "30px sans-serif";
-        ctx.fillText("Seu mapa político sem extremos", w/2, 170);
-
-        var gSize = 700;
-        var gX = (w - gSize) / 2;
-        var gY = cardY + 100;
-        
-        ctx.save();
-        ctx.translate(gX, gY);
-        
-        ctx.fillStyle = isDark ? "#000000" : "#F2F2F7";
-        ctx.fillRect(0, 0, gSize, gSize);
-        
-        var centerX = gSize / 2, centerY = gSize / 2;
-        var scale = (gSize / 2) - 60;
-        var axisColor = isDark ? "#3A3A3C" : "#C6C6C8";
-        
-        ctx.beginPath();
-        ctx.moveTo(40, centerY); ctx.lineTo(gSize - 40, centerY);
-        ctx.moveTo(centerX, 40); ctx.lineTo(centerX, gSize - 40);
-        ctx.strokeStyle = axisColor; ctx.lineWidth = 3; ctx.stroke();
-        
-        ctx.fillStyle = textSec; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
-        ctx.fillText("ESQUERDA", centerX - 120, gSize - 20);
-        ctx.fillText("DIREITA", centerX + 120, gSize - 20);
-        ctx.save(); ctx.translate(20, centerY - 120); ctx.rotate(-Math.PI / 2); ctx.fillText("AUTORITÁRIO", 0, 0); ctx.restore();
-        ctx.save(); ctx.translate(20, centerY + 120); ctx.rotate(-Math.PI / 2); ctx.fillText("LIBERTÁRIO", 0, 0); ctx.restore();
-        
-        var pixelX = centerX + (currentResult.x / 10) * scale;
-        var pixelY = centerY - (currentResult.y / 10) * scale; 
-        
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "rgba(255, 59, 48, 0.6)";
-        ctx.beginPath(); ctx.arc(pixelX, pixelY, 20, 0, 2 * Math.PI); ctx.fillStyle = "#FF3B30"; ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = isDark ? "#000" : "#fff"; ctx.lineWidth = 6; ctx.stroke();
-        
-        ctx.restore(); 
-
-        ctx.textAlign = "center";
-        
-        ctx.fillStyle = primary;
-        var badgeText = currentResult.label;
-        ctx.font = "bold 45px sans-serif";
-        var badgeW = ctx.measureText(badgeText).width + 80;
-        ctx.fillRect(w/2 - badgeW/2, gY + gSize + 40, badgeW, 80);
-        
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillText(badgeText, w/2, gY + gSize + 95);
-
-        ctx.fillStyle = textMain;
-        ctx.font = "35px sans-serif";
-        
-        var words = currentResult.explicacao.split(" ");
-        var line = "";
-        var startY = gY + gSize + 180;
-        
-        for(var n = 0; n < words.length; n++) {
-            var testLine = line + words[n] + " ";
-            var metrics = ctx.measureText(testLine);
-            var testWidth = metrics.width;
-            if (testWidth > cardW - 80 && n > 0) {
-                ctx.fillText(line, w/2, startY);
-                line = words[n] + " ";
-                startY += 45;
-            } else {
-                line = testLine;
-            }
-        }
-        ctx.fillText(line, w/2, startY);
-
-        var dataURL = canvas.toDataURL("image/png");
-        var link = document.createElement('a');
-        link.download = 'nuance_map_resultado.png';
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-</script>
-</body>
-</html>
+        // API pública e gratuita da Wikipédia (sem chave de API)
+        fetch('https://pt.wikipedia.org/

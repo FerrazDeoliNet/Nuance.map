@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        /* [CSS MANTIDO IGUAL À VERSÃO ANTERIOR, APENAS ADICIONADO O INPUT DE EMAIL] */
         :root {
             --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-main: #000000;
             --text-sec: #8E8E93; --primary: #007AFF; --primary-press: #0056b3;
@@ -109,7 +108,6 @@
         @keyframes fadeInFundo { from { background: rgba(0,0,0,0); } to { background: rgba(0,0,0,0.5); } }
         @keyframes springPopUp { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* Estilo para input de email */
         .input-email {
             width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px;
             border: 1px solid var(--border-color); background: var(--bg-color);
@@ -137,7 +135,7 @@
     <h2>Histórico de Testes</h2>
     <div id="user-status" class="stats-text" style="margin-bottom: 10px;"></div>
     <div class="history-list" id="history-list"></div>
-    <button class="btn btn-danger" onclick="apagarHistorico()">Apagar Dados</button>
+    <button class="btn btn-danger" onclick="apagarHistorico()">Apagar Dados Locais</button>
     <button class="btn btn-no hidden" id="btn-logout" onclick="fazerLogout()" style="margin-top: 10px;">Sair da Conta</button>
 </div>
 
@@ -154,7 +152,6 @@
         <button class="btn btn-no" onclick="mostrarPerguntaDoDia()" style="margin-top: 10px;">💡 Reflexão do Dia</button>
     </div>
 
-    <!-- [MANTIDAS AS TELAS DE TUTORIAL, QUIZ E RESULTADO] -->
     <div id="screen-tutorial" class="hidden">
         <div class="tutorial-box" id="tutorial-content"></div>
         <div class="tutorial-dots" id="tutorial-dots"></div>
@@ -230,117 +227,31 @@
         console.warn("Supabase não configurado. Usando modo offline.");
     }
 
-    // --- VARIÁVEIS DO APP ---
-    var dicionario = { /* ... (MANTIDO DO CÓDIGO ANTERIOR) ... */ };
-    var bancoPerguntas = [ /* ... (MANTIDO DO CÓDIGO ANTERIOR) ... */ ];
-    var tutorialPassos = [ /* ... (MANTIDO DO CÓDIGO ANTERIOR) ... */ ];
-    
-    var tutorialAtual = 0;
-    var perguntasRodada = [];
-    var indiceAtual = 0;
-    var historicoRespostas = []; 
-    var pontosRodadaEcon = 0;
-    var pontosRodadaAut = 0;
-    var pontosCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 };
-    var totalCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 };
-    var usouIntermediario = 0;
+    // --- BANCO DE DADOS COMPLETO ---
+    var dicionario = {
+        "descriminalizado": { titulo: "Descriminalização", texto: "Deixar de tratar uma conduta como crime. A pessoa não vai presa, mas a prática pode continuar proibida com multas administrativas." },
+        "regulação": { titulo: "Regulação Estatal", texto: "Regras que o Estado cria para controlar e fiscalizar empresas privadas, protegendo o consumidor e a concorrência." },
+        "privatizações": { titulo: "Privatização", texto: "Venda de empresas públicas para a iniciativa privada. Pode melhorar a eficiência ou aumentar preços." },
+        "flexibilizadas": { titulo: "Flexibilização", texto: "Tornar as leis trabalhistas mais flexíveis, permitindo negociação direta entre patrão e empregado." },
+        "transferência de renda": { titulo: "Transferência de Renda", texto: "Programas sociais que dão dinheiro diretamente a famílias de baixa renda (ex: Bolsa Família)." },
+        "cotas": { titulo: "Cotas", texto: "Reserva de vagas para grupos marginalizados em universidades e concursos públicos." },
+        "teto de gastos": { titulo: "Teto de Gastos", texto: "Regra que limita o crescimento dos gastos do governo para controlar a dívida pública." },
+        "monopólio": { titulo: "Monopólio Estatal", texto: "Quando o governo é o único fornecedor de um serviço ou produto específico." },
+        "pena de morte": { titulo: "Pena de Morte", texto: "Execução de um condenado pelo Estado como punição por crime grave." },
+        "porte de armas": { titulo: "Porte de Armas", texto: "Direito do cidadão de carregar arma de fogo. Debate entre legítima defesa e segurança pública." },
+        "intervenção militar": { titulo: "Intervenção Militar", texto: "Forças Armadas assumindo o controle de áreas civis, geralmente por crise de segurança." },
+        "censura": { titulo: "Censura", texto: "Controle ou proibição de informações e opiniões pelo governo." },
+        "voto obrigatório": { titulo: "Voto Obrigatório", texto: "Comparecimento às urnas é uma obrigação legal, sujeita a multas." },
+        "regulamentação": { titulo: "Regulamentação", texto: "Criar regras detalhadas. No caso de drogas, permite a venda e uso controlados pelo Estado." }
+    };
 
-    var dbHistorico = { totalEcon: 0, totalAut: 0, rodadas: 0 }; 
-    var historicoRodadas = []; 
-    var currentResult = { x: 0, y: 0, label: "", explicacao: "", titulo: "" };
-
-    // --- LÓGICA DE LOGIN E SESSÃO SUPABASE ---
-    function abrirModalLogin() {
-        if (usuarioLogado) {
-            abrirSidebar();
-        } else {
-            document.getElementById('modal-login').classList.add('ativo');
-        }
-    }
-
-    function fecharModalLogin() { document.getElementById('modal-login').classList.remove('ativo'); }
-    function fecharForaLogin(event) { if (event.target.id === 'modal-login') fecharModalLogin(); }
-
-    async function fazerLoginMagicLink() {
-        if (!supabaseClient) { document.getElementById('login-msg').innerText = "Erro de conexão."; return; }
-        const email = document.getElementById('login-email').value;
-        if (!email) { document.getElementById('login-msg').innerText = "Digite um e-mail válido."; return; }
-        
-        document.getElementById('login-msg').innerText = "Enviando link...";
-        
-        const { error } = await supabaseClient.auth.signInWithOtp({
-            email: email,
-            options: { emailRedirectTo: window.location.href }
-        });
-
-        if (error) {
-            document.getElementById('login-msg').innerText = "Erro: " + error.message;
-        } else {
-            document.getElementById('login-msg').innerText = "Link enviado! Verifique seu e-mail.";
-            document.getElementById('login-email').value = "";
-        }
-    }
-
-    async function fazerLogout() {
-        if (supabaseClient) {
-            await supabaseClient.auth.signOut();
-            window.location.reload(); // Recarrega para limpar estado
-        }
-    }
-
-    async function verificarSessao() {
-        if (!supabaseClient) return;
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        usuarioLogado = session?.user || null;
-        atualizarInterfaceLogin();
-        
-        if (usuarioLogado) {
-            await sincronizarDados();
-        }
-    }
-
-    if (supabaseClient) {
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-            usuarioLogado = session?.user || null;
-            atualizarInterfaceLogin();
-            if (event === 'SIGNED_IN') {
-                sincronizarDados();
-                fecharModalLogin();
-            }
-        });
-    }
-
-    function atualizarInterfaceLogin() {
-        const btn = document.getElementById('btn-login');
-        const btnLogout = document.getElementById('btn-logout');
-        const userStatus = document.getElementById('user-status');
-
-        if (usuarioLogado) {
-            btn.innerText = '👤';
-            btn.style.color = 'var(--success)';
-            btnLogout.classList.remove('hidden');
-            userStatus.innerText = "Logado como: " + usuarioLogado.email;
-        } else {
-            btn.innerText = '👤';
-            btn.style.color = 'var(--text-sec)';
-            btnLogout.classList.add('hidden');
-            userStatus.innerText = "Modo Offline (Não logado)";
-        }
-    }
-
-    async function sincronizarDados() {
-        if (!supabaseClient || !usuarioLogado) return;
-        
-        try {
-            // 1. Baixa o histórico da nuvem
-            const { data, error } = await supabaseClient
-                .from('historico_testes')
-                .select('resultado')
-                .eq('user_id', usuarioLogado.id)
-                .order('criado_em', { ascending: true });
-
-            if (data && data.length > 0) {
-                // Se tem dados na nuvem, substitui os locais para evitar duplicação na mesclagem (ideal para v1)
-                historicoRodadas = data.map(item => item.resultado);
-                
-                // Recalcula os totais basea
+    var bancoPerguntas = [
+        { texto: "O Estado deve ter um papel forte na <span class='keyword' data-term='regulação'>regulação</span> da economia?", eixo: "econ", cat: "economia", expl: "Regulação é o nível de intervenção do governo nas empresas. Um papel forte cria muitas regras e fiscalização.", inter: "Só em setores essenciais" },
+        { texto: "Serviços essenciais como saúde e educação devem ser 100% gratuitos?", eixo: "econ", cat: "estado", expl: "Questiona se o Estado deve arcar com 100% do custo, sem cobrança de mensalidades.", inter: "Apenas para os mais pobres" },
+        { texto: "A carga tributária sobre os mais ricos deveria ser maior?", eixo: "econ", cat: "economia", expl: "Trata do aumento de impostos sobre grandes fortunas como forma de redistribuir renda.", inter: "Apenas um pouco mais" },
+        { texto: "<span class='keyword' data-term='privatizações'>Privatizações</span> de estatais são benéficas?", eixo: "econ", cat: "economia", inverter: true, expl: "Vender empresas controladas pelo governo para a iniciativa privada.", inter: "Depende do setor" },
+        { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", cat: "economia", inverter: true, expl: "Permitir que acordos entre patrões e empregados se sobreponham à lei.", inter: "Apenas em momentos de crise" },
+        { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", cat: "estado", expl: "Aumentar a quantidade de dinheiro ou o número de pessoas atendidas.", inter: "Apenas o necessário" },
+        { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", cat: "costumes", expl: "Reservar um percentual de vagas em universidades e concursos públicos.", inter: "Apenas cotas sociais (renda)" },
+        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", cat: "economia", inverter: true, expl: "Uma regra que impede o governo de gastar mais do que um limite.", inter: "Sim, mas com exceções" },
+        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", cat: "estado", expl

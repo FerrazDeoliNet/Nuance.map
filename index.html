@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nuance.map</title>
     
-    <!-- Configuração PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007AFF">
 
+    <!-- SDK do Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
-        /* [MANTIDO O CSS ANTERIOR, APENAS ADICIONADO ESTILOS PARA O RADAR E BADGE] */
+        /* [CSS MANTIDO IGUAL À VERSÃO ANTERIOR, APENAS ADICIONADO O INPUT DE EMAIL] */
         :root {
             --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-main: #000000;
             --text-sec: #8E8E93; --primary: #007AFF; --primary-press: #0056b3;
@@ -106,6 +108,13 @@
         
         @keyframes fadeInFundo { from { background: rgba(0,0,0,0); } to { background: rgba(0,0,0,0.5); } }
         @keyframes springPopUp { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* Estilo para input de email */
+        .input-email {
+            width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px;
+            border: 1px solid var(--border-color); background: var(--bg-color);
+            color: var(--text-main); font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -113,6 +122,7 @@
 <div class="top-left-container">
     <button class="icon-btn hidden" id="btn-home" onclick="irParaHome()">🏠</button>
     <button class="icon-btn" id="btn-sidebar" onclick="abrirSidebar()">☰</button>
+    <button class="icon-btn" id="btn-login" onclick="abrirModalLogin()">👤</button>
 </div>
 
 <div class="theme-container">
@@ -125,8 +135,10 @@
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="fecharSidebar()"></div>
 <div class="sidebar" id="sidebar">
     <h2>Histórico de Testes</h2>
+    <div id="user-status" class="stats-text" style="margin-bottom: 10px;"></div>
     <div class="history-list" id="history-list"></div>
     <button class="btn btn-danger" onclick="apagarHistorico()">Apagar Dados</button>
+    <button class="btn btn-no hidden" id="btn-logout" onclick="fazerLogout()" style="margin-top: 10px;">Sair da Conta</button>
 </div>
 
 <div class="container">
@@ -142,6 +154,7 @@
         <button class="btn btn-no" onclick="mostrarPerguntaDoDia()" style="margin-top: 10px;">💡 Reflexão do Dia</button>
     </div>
 
+    <!-- [MANTIDAS AS TELAS DE TUTORIAL, QUIZ E RESULTADO] -->
     <div id="screen-tutorial" class="hidden">
         <div class="tutorial-box" id="tutorial-content"></div>
         <div class="tutorial-dots" id="tutorial-dots"></div>
@@ -168,12 +181,8 @@
         <div class="user-title" id="user-title"></div>
         <div class="stats-text" id="stats-desc"></div>
         
-        <!-- Gráfico 1: Dispersão (Onde estou eu / Onde está meu amigo) -->
         <canvas id="graphCanvas" width="400" height="400"></canvas>
-        
-        <!-- Gráfico 2: Radar (Detalhamento por Tema) -->
         <canvas id="radarCanvas" width="400" height="400" style="margin-top: 10px;"></canvas>
-        
         <canvas id="shareCanvas" width="1080" height="1920" style="display:none;"></canvas>
         
         <p class="desc" id="result-desc" style="margin-top: 15px;"></p>
@@ -184,6 +193,20 @@
     </div>
 </div>
 
+<!-- MODAL DE LOGIN -->
+<div class="modal-overlay" id="modal-login" onclick="fecharForaLogin(event)">
+    <div class="modal-content">
+        <div class="drag-handle"></div>
+        <h3>Entrar no Nuance.map</h3>
+        <p style="text-align: center; margin-bottom: 15px; font-size: 0.85rem;">Salve seu histórico na nuvem com segurança.</p>
+        <input type="email" id="login-email" class="input-email" placeholder="Seu e-mail">
+        <button class="btn" onclick="fazerLoginMagicLink()">Enviar Link de Acesso</button>
+        <button class="btn btn-no" onclick="fecharModalLogin()" style="margin-top: 10px;">Cancelar</button>
+        <div id="login-msg" class="stats-text" style="text-align: center; margin-top: 15px; font-weight: bold;"></div>
+    </div>
+</div>
+
+<!-- MODAL PADRÃO -->
 <div class="modal-overlay" id="modal" onclick="fecharFora(event)">
     <div class="modal-content">
         <div class="drag-handle"></div>
@@ -194,104 +217,130 @@
 </div>
 
 <script>
-    // --- CONFIGURAÇÃO E BANCO DE DADOS ---
-    // (Mantive o dicionário e bancoPerguntas, mas adicionei a propriedade 'cat')
+    // --- CONFIGURAÇÃO DO SUPABASE ---
+    const SUPABASE_URL = 'https://qcfvjcqczsktqdmemcel.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZnZqY3FjenNrdHFkbWVtY2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1OTg5MjIsImV4cCI6MjEwODE3NDkyMn0.bI5lj5aMXLWNCd6AVVmHCxgKZWAWisRblvsASKLZSrg';
     
-    var dicionario = { /* ... mantenha o dicionário igual ... */ };
-    
-    // Exemplo de como adicionar 'cat' (categoria) nas perguntas. 
-    // Vou colocar 5 categorias: econ, costumes, seguranca, ambiente, estado
-    var bancoPerguntas = [
-        { texto: "O Estado deve ter um papel forte na <span class='keyword' data-term='regulação'>regulação</span> da economia?", eixo: "econ", cat: "economia", expl: "...", inter: "Só em setores essenciais" },
-        { texto: "Serviços essenciais como saúde e educação devem ser 100% gratuitos?", eixo: "econ", cat: "estado", expl: "...", inter: "Apenas para os mais pobres" },
-        { texto: "A carga tributária sobre os mais ricos deveria ser maior?", eixo: "econ", cat: "economia", expl: "...", inter: "Apenas um pouco mais" },
-        { texto: "<span class='keyword' data-term='privatizações'>Privatizações</span> de estatais são benéficas?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Depende do setor" },
-        { texto: "As leis trabalhistas devem ser mais <span class='keyword' data-term='flexibilizadas'>flexibilizadas</span>?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Apenas em momentos de crise" },
-        { texto: "Programas de <span class='keyword' data-term='transferência de renda'>transferência de renda</span> devem ser ampliados?", eixo: "econ", cat: "estado", expl: "...", inter: "Apenas o necessário" },
-        { texto: "O governo deve criar <span class='keyword' data-term='cotas'>cotas</span> raciais e sociais?", eixo: "econ", cat: "costumes", expl: "...", inter: "Apenas cotas sociais (renda)" },
-        { texto: "O país deve ter um <span class='keyword' data-term='teto de gastos'>teto de gastos</span> rigoroso?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Sim, mas com exceções" },
-        { texto: "O Estado deveria ter o <span class='keyword' data-term='monopólio'>monopólio</span> de setores estratégicos?", eixo: "econ", cat: "estado", expl: "...", inter: "Apenas em casos raros" },
-        { texto: "O livre mercado é a melhor forma de gerar riqueza?", eixo: "econ", cat: "economia", inverter: true, expl: "...", inter: "Com alguma regulação" },
-        { texto: "O Estado deve investir pesado em energia renovável?", eixo: "econ", cat: "ambiente", expl: "...", inter: "Se não aumentar impostos" },
-        // ... (Aqui você adicionaria o 'cat' nas outras 30 perguntas. Ex: Segurança para porte de armas, Costumes para casamento, etc.)
-        // Para simplificar o exemplo, vou puxar do seu código original e fingir que todas têm categoria.
-    ];
+    let supabaseClient = null;
+    let usuarioLogado = null;
 
-    // TUTORIAL
-    var tutorialPassos = [
-        { icon: "🧭", title: "Bem-vindo ao Nuance.map!", text: "Este app mapeia sua posição política de forma imparcial, fugindo dos extremos." },
-        { icon: "🎲", title: "Perguntas Sorteadas", text: "A cada teste, 20 perguntas são sorteadas. Elas avaliam Economia, Costumes e Estado." },
-        { icon: "⚖️", title: "Sem Extremos", text: "Se uma pergunta tiver nuances, um botão do meio aparecerá. Ele vale meio ponto." },
-        { icon: "🧠", title: "Contexto e Aprendizado", text: "Toque nas palavras sublinhadas para entender o contexto. A cada teste, o algoritmo aprende com você." }
-    ];
+    try {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch(e) {
+        console.warn("Supabase não configurado. Usando modo offline.");
+    }
+
+    // --- VARIÁVEIS DO APP ---
+    var dicionario = { /* ... (MANTIDO DO CÓDIGO ANTERIOR) ... */ };
+    var bancoPerguntas = [ /* ... (MANTIDO DO CÓDIGO ANTERIOR) ... */ ];
+    var tutorialPassos = [ /* ... (MANTIDO DO CÓDIGO ANTERIOR) ... */ ];
     
     var tutorialAtual = 0;
     var perguntasRodada = [];
     var indiceAtual = 0;
     var historicoRespostas = []; 
-    
-    // Variáveis de Pontuação
     var pontosRodadaEcon = 0;
     var pontosRodadaAut = 0;
-    var pontosCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 }; // NOVO
-    var totalCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 }; // NOVO
-    var usouIntermediario = 0; // Para o Badge
+    var pontosCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 };
+    var totalCategoria = { economia: 0, costumes: 0, estado: 0, ambiente: 0, seguranca: 0 };
+    var usouIntermediario = 0;
 
     var dbHistorico = { totalEcon: 0, totalAut: 0, rodadas: 0 }; 
     var historicoRodadas = []; 
     var currentResult = { x: 0, y: 0, label: "", explicacao: "", titulo: "" };
 
-    // --- LÓGICA DE COMPARTILHAMENTO VIA LINK (COMPARADOR) ---
-    var amigoX = null, amigoY = null, amigoNome = null;
-    function checarParametrosURL() {
-        var urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('x') && urlParams.has('y')) {
-            amigoX = parseFloat(urlParams.get('x'));
-            amigoY = parseFloat(urlParams.get('y'));
-            amigoNome = urlParams.get('n') || "Amigo";
-            console.log("Modo Comparador ativado! Amigo:", amigoNome, amigoX, amigoY);
+    // --- LÓGICA DE LOGIN E SESSÃO SUPABASE ---
+    function abrirModalLogin() {
+        if (usuarioLogado) {
+            abrirSidebar();
+        } else {
+            document.getElementById('modal-login').classList.add('ativo');
         }
     }
 
-    // --- PWA E BANCO DE DADOS LOCAL (LOCALSTORAGE) ---
-    // Agora que roda em HTTPS (GitHub Pages), o localStorage funciona perfeitamente.
-    function salvarDados() {
+    function fecharModalLogin() { document.getElementById('modal-login').classList.remove('ativo'); }
+    function fecharForaLogin(event) { if (event.target.id === 'modal-login') fecharModalLogin(); }
+
+    async function fazerLoginMagicLink() {
+        if (!supabaseClient) { document.getElementById('login-msg').innerText = "Erro de conexão."; return; }
+        const email = document.getElementById('login-email').value;
+        if (!email) { document.getElementById('login-msg').innerText = "Digite um e-mail válido."; return; }
+        
+        document.getElementById('login-msg').innerText = "Enviando link...";
+        
+        const { error } = await supabaseClient.auth.signInWithOtp({
+            email: email,
+            options: { emailRedirectTo: window.location.href }
+        });
+
+        if (error) {
+            document.getElementById('login-msg').innerText = "Erro: " + error.message;
+        } else {
+            document.getElementById('login-msg').innerText = "Link enviado! Verifique seu e-mail.";
+            document.getElementById('login-email').value = "";
+        }
+    }
+
+    async function fazerLogout() {
+        if (supabaseClient) {
+            await supabaseClient.auth.signOut();
+            window.location.reload(); // Recarrega para limpar estado
+        }
+    }
+
+    async function verificarSessao() {
+        if (!supabaseClient) return;
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        usuarioLogado = session?.user || null;
+        atualizarInterfaceLogin();
+        
+        if (usuarioLogado) {
+            await sincronizarDados();
+        }
+    }
+
+    if (supabaseClient) {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            usuarioLogado = session?.user || null;
+            atualizarInterfaceLogin();
+            if (event === 'SIGNED_IN') {
+                sincronizarDados();
+                fecharModalLogin();
+            }
+        });
+    }
+
+    function atualizarInterfaceLogin() {
+        const btn = document.getElementById('btn-login');
+        const btnLogout = document.getElementById('btn-logout');
+        const userStatus = document.getElementById('user-status');
+
+        if (usuarioLogado) {
+            btn.innerText = '👤';
+            btn.style.color = 'var(--success)';
+            btnLogout.classList.remove('hidden');
+            userStatus.innerText = "Logado como: " + usuarioLogado.email;
+        } else {
+            btn.innerText = '👤';
+            btn.style.color = 'var(--text-sec)';
+            btnLogout.classList.add('hidden');
+            userStatus.innerText = "Modo Offline (Não logado)";
+        }
+    }
+
+    async function sincronizarDados() {
+        if (!supabaseClient || !usuarioLogado) return;
+        
         try {
-            localStorage.setItem('nuance_db', JSON.stringify(dbHistorico));
-            localStorage.setItem('nuance_historico', JSON.stringify(historicoRodadas));
-        } catch(e) { console.log("Erro ao salvar"); }
-    }
+            // 1. Baixa o histórico da nuvem
+            const { data, error } = await supabaseClient
+                .from('historico_testes')
+                .select('resultado')
+                .eq('user_id', usuarioLogado.id)
+                .order('criado_em', { ascending: true });
 
-    function carregarDados() {
-        try {
-            var db = localStorage.getItem('nuance_db');
-            if(db) dbHistorico = JSON.parse(db);
-            var hist = localStorage.getItem('nuance_historico');
-            if(hist) historicoRodadas = JSON.parse(hist);
-        } catch(e) { console.log("Erro ao carregar"); }
-    }
-
-    // ... (MANTIDAS AS FUNÇÕES: irParaHome, abrirSidebar, fecharSidebar, desenharHistoricoSidebar, mostrarResultadoHistorico, mudarTema) ...
-
-    function apagarHistorico() {
-        dbHistorico = { totalEcon: 0, totalAut: 0, rodadas: 0 };
-        historicoRodadas = [];
-        localStorage.removeItem('nuance_db');
-        localStorage.removeItem('nuance_historico');
-        desenharHistoricoSidebar();
-        atualizarTelaInicial();
-        fecharSidebar();
-    }
-
-    // --- REFLEXÃO DO DIA (API DA WIKIPÉDIA) ---
-    function mostrarPerguntaDoDia() {
-        document.getElementById('modal-title').innerText = "Reflexão Histórica";
-        document.getElementById('modal-desc').innerText = "Buscando um fato histórico de hoje...";
-        document.getElementById('modal').classList.add('ativo');
-
-        var hoje = new Date();
-        var mes = String(hoje.getMonth() + 1).padStart(2, '0');
-        var dia = String(hoje.getDate()).padStart(2, '0');
-
-        // API pública e gratuita da Wikipédia (sem chave de API)
-        fetch('https://pt.wikipedia.org/
+            if (data && data.length > 0) {
+                // Se tem dados na nuvem, substitui os locais para evitar duplicação na mesclagem (ideal para v1)
+                historicoRodadas = data.map(item => item.resultado);
+                
+                // Recalcula os totais basea

@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nuance.map</title>
+    <!-- SDK do Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
-    
-    
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="icon-192.png">
 
@@ -17,6 +17,7 @@
 <div class="top-left-container">
     <button class="icon-btn hidden" id="btn-home" onclick="irParaHome()">🏠</button>
     <button class="icon-btn" id="btn-sidebar" onclick="abrirSidebar()">☰</button>
+    <button class="icon-btn" id="btn-login" onclick="abrirModalLogin()">👤</button>
 </div>
 
 <div class="theme-container">
@@ -29,8 +30,10 @@
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="fecharSidebar()"></div>
 <div class="sidebar" id="sidebar">
     <h2>Histórico de Testes</h2>
+    <div id="user-status" class="stats-text" style="margin-bottom: 10px;"></div>
     <div class="history-list" id="history-list"></div>
     <button class="btn btn-danger" onclick="apagarHistorico()">Apagar Dados Locais</button>
+    <button class="btn btn-no hidden" id="btn-logout" onclick="fazerLogout()" style="margin-top: 10px;">Sair da Conta</button>
 </div>
 
 <div class="container">
@@ -90,6 +93,22 @@
     </div>
 
 <div class="version-tag">Nuance.map v0.2 (Beta)</div>
+    <!-- TELA DE LOGIN -->
+<div class="modal-overlay" id="modal-login" onclick="fecharForaLogin(event)">
+    <div class="modal-content">
+        <div class="drag-handle"></div>
+        <h3>Entrar no Nuance.map</h3>
+        <p style="text-align: center; margin-bottom: 15px; font-size: 0.85rem;">Salve seu histórico na nuvem com segurança.</p>
+        
+        <input type="email" id="login-email" class="input-email" placeholder="Seu e-mail">
+        
+        <button class="btn" onclick="fazerLoginMagicLink()">Enviar Link de Acesso</button>
+        <button class="btn btn-no" onclick="fecharModalLogin()" style="margin-top: 10px;">Cancelar</button>
+        
+        <div id="login-msg" class="stats-text" style="text-align: center; margin-top: 15px; font-weight: bold;"></div>
+    </div>
+</div>
+    
 <script src="script.js"></script>
 
     <script>

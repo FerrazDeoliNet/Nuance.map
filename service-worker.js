@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nuance-map-v1';
+const CACHE_NAME = 'nuance-map-v2';
 const ASSETS = [
   './',
   './index.html',

@@ -1,3 +1,19 @@
+// --- CONFIGURAÇÃO DO SUPABASE ---
+const SUPABASE_URL = 'https://qcfvjcqczsktqdmemcel.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjZnZqY3FjenNrdHFkbWVtY2VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1OTg5MjIsImV4cCI6MjEwODE3NDkyMn0.bI5lj5aMXLWNCd6AVVmHCxgKZWAWisRblvsASKLZSrg';
+
+let supabaseClient = null;
+let usuarioLogado = null;
+
+window.addEventListener('load', function() {
+    if (typeof supabase !== 'undefined') {
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            verificarSessao();
+        } catch(e) { console.warn("Erro ao iniciar Supabase."); }
+    }
+});
+
 var dicionario = {
     "descriminalizado": { titulo: "Descriminalização", texto: "Deixar de tratar uma conduta como crime. A pessoa não vai presa, mas a prática pode continuar proibida com multas administrativas." },
     "regulação": { titulo: "Regulação Estatal", texto: "Regras que o Estado cria para controlar e fiscalizar empresas privadas, protegendo o consumidor e a concorrência." },
@@ -614,6 +630,63 @@ function compartilharResultado() {
     } else {
         navigator.clipboard.writeText("Meu resultado no Nuance.map: " + shareUrl);
         alert("Link copiado!");
+    }
+}
+// --- FUNÇÕES DE LOGIN ---
+function abrirModalLogin() {
+    if (usuarioLogado) { abrirSidebar(); } 
+    else { document.getElementById('modal-login').classList.add('ativo'); }
+}
+
+function fecharModalLogin() { document.getElementById('modal-login').classList.remove('ativo'); }
+function fecharForaLogin(event) { if (event.target.id === 'modal-login') fecharModalLogin(); }
+
+async function fazerLoginMagicLink() {
+    if (!supabaseClient) { document.getElementById('login-msg').innerText = "Erro: Sem conexão."; return; }
+    const email = document.getElementById('login-email').value;
+    if (!email) { document.getElementById('login-msg').innerText = "Digite um e-mail."; return; }
+    
+    document.getElementById('login-msg').innerText = "Enviando...";
+    const { error } = await supabaseClient.auth.signInWithOtp({
+        email: email, options: { emailRedirectTo: window.location.href }
+    });
+
+    if (error) { document.getElementById('login-msg').innerText = "Erro: " + error.message; } 
+    else { document.getElementById('login-msg').innerText = "Link enviado! Verifique seu e-mail."; }
+}
+
+async function fazerLogout() {
+    if (supabaseClient) { await supabaseClient.auth.signOut(); window.location.reload(); }
+}
+
+async function verificarSessao() {
+    if (!supabaseClient) return;
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    usuarioLogado = session?.user || null;
+    atualizarInterfaceLogin();
+}
+
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        usuarioLogado = session?.user || null;
+        atualizarInterfaceLogin();
+        if (event === 'SIGNED_IN') fecharModalLogin();
+    });
+}
+
+function atualizarInterfaceLogin() {
+    const btn = document.getElementById('btn-login');
+    const userStatus = document.getElementById('user-status');
+    const btnLogout = document.getElementById('btn-logout');
+    
+    if (usuarioLogado) {
+        btn.style.color = 'var(--success)';
+        if(userStatus) userStatus.innerText = "Logado: " + usuarioLogado.email;
+        if(btnLogout) btnLogout.classList.remove('hidden');
+    } else {
+        btn.style.color = 'var(--text-sec)';
+        if(userStatus) userStatus.innerText = "Modo Offline";
+        if(btnLogout) btnLogout.classList.add('hidden');
     }
 }
 
